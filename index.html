@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>電商流程自動化 demo｜MOKA 咖啡 一條龍 pipeline</title>
+<style>
+:root{--bg:#0d1220;--panel:#121a2e;--line:#26304a;--text:#e9edf6;--sub:#93a0bd;--acc:#7c6cff;--ok:#2fd08c;--warn:#ffb454;--err:#ff6b6b}
+*{margin:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+header{padding:64px 0 26px;text-align:center}
+.kicker{color:var(--acc);font-weight:700;letter-spacing:.12em;font-size:13px}
+h1{font-size:clamp(26px,4.6vw,40px);margin:12px 0 8px}
+.lede{color:var(--sub);max-width:580px;margin:0 auto}
+.main{margin:28px 0 24px;display:grid;grid-template-columns:1fr 330px;gap:18px}
+@media(max-width:860px){.main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.card h2{font-size:16px;margin-bottom:4px}
+.card .hint{color:var(--sub);font-size:12.5px;margin-bottom:14px}
+.pipe{display:flex;gap:8px;align-items:stretch;margin-bottom:18px;overflow-x:auto}
+.stage{flex:1;min-width:130px;background:#141d38;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+.stage .ic{font-size:20px}
+.stage b{display:block;font-size:13px;margin:6px 0 3px}
+.stage span{font-size:11px;color:var(--sub)}
+.stage.on{border-color:var(--acc);background:rgba(124,108,255,.10)}
+.stage.on span{color:var(--acc)}
+.stage.ok{border-color:var(--ok)}
+.stage.ok span{color:var(--ok)}
+.order{background:#141d38;border:1px solid var(--line);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.6}
+.order .no{font-weight:700}
+.order small{color:var(--sub)}
+.run{display:inline-block;margin-top:14px;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.run:disabled{opacity:.4;cursor:not-allowed}
+.side h2{font-size:15px}
+.stock{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.stock li{background:#141d38;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.stock .n{font-weight:700}
+.stock .low{color:var(--warn)}
+.stock .out{color:var(--err)}
+.stock .ok{color:var(--ok)}
+.log{max-height:260px;overflow-y:auto;font-size:12.5px;display:flex;flex-direction:column;gap:7px}
+.log div{display:flex;gap:8px;line-height:1.5}
+.log .t{color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+.log .k{white-space:nowrap}
+.k.sys{color:var(--sub)}.k.ok{color:var(--ok)}.k.warn{color:var(--warn)}.k.ocr{color:var(--acc)}
+.invoice{background:#0e1428;border:1px dashed var(--line);border-radius:10px;padding:11px;font-size:12px;color:var(--sub);font-family:monospace;line-height:1.7;margin-top:10px}
+footer{border-top:1px solid var(--line);padding:26px 0 50px;text-align:center;color:var(--sub);font-size:12.5px}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="kicker">E-COMMERCE PIPELINE AUTOMATION</div>
+  <h1>一張訂單進來，<br>到對帳出報表，中間不用人碰</h1>
+  <p class="lede">demo 是虛擬品牌 MOKA 咖啡的自動化 pipeline：訂單進來 → 庫存自動扣減（低庫存自動警報）→ 出貨單 → 開立發票 → 月底自動對帳。點下方「跑一筆訂單」看它如何一條龍跑完。右側是即時庫存與執行日誌。</p>
+</header>
+
+<div class="wrap main">
+  <div>
+    <div class="card">
+      <h2>自動化流水線</h2>
+      <div class="hint">每一格都是一個自動節點，前一個完成才啟動後一個；任何一節出錯會停在該節並通知，不會默默跳過。</div>
+      <div class="pipe" id="pipe">
+        <div class="stage" data-s="1"><div class="ic">📥</div><b>訂單</b><span>蝦皮 / LINE / 官網</span></div>
+        <div class="stage" data-s="2"><div class="ic">📦</div><b>庫存扣減</b><span>低庫存警報</span></div>
+        <div class="stage" data-s="3"><div class="ic">🚚</div><b>出貨單</b><span>貨運排程</span></div>
+        <div class="stage" data-s="4"><div class="ic">🧾</div><b>發票</b><span>自動開立</span></div>
+        <div class="stage" data-s="5"><div class="ic">📊</div><b>對帳</b><span>月底報表</span></div>
+      </div>
+      <div class="order">
+        <span class="no">訂單 #A-1042</span>　<span>手沖咖啡禮盒 x2 ＋ 濾紙 x1</span><br>
+        <small>渠道：蝦皮｜客戶：統一編號 B00123456｜應收 $1,860</small>
+      </div>
+      <br>
+      <button class="run" id="runbtn" onclick="run()">▶ 跑一筆訂單（自動執行全流程）</button>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h2>對帳報告（自動產出）</h2>
+      <div class="hint">月底系統自動比對「訂單 vs 出貨 vs 實收」，差異自動標紅，不用人工逐筆核。</div>
+      <div class="log">
+        <div><span class="t">8/01</span><span class="k ok">平</span>訂單 214 筆／出貨 214 筆／實收 $312,400 ＝ 全數相符</div>
+        <div><span class="t">8/05</span><span class="k warn">差</span>訂單 #A-1007 出貨延遲 2 日 → 自動補發貨運單</div>
+        <div><span class="t">8/12</span><span class="k ok">平</span>發票開立 198 張，缺 2 張已自動補開</div>
+        <div><span class="t">8/20</span><span class="k ok">平</span>低庫存 3 項已自動下補貨單（MOKA 禮盒）</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>即時庫存</h2>
+      <ul class="stock" id="stock">
+        <li><span>手沖咖啡禮盒</span><span class="n" id="s1">18</span></li>
+        <li><span>濾紙</span><span class="n" id="s2">240</span></li>
+        <li><span>分享壺</span><span class="n low" id="s3">4</span></li>
+        <li><span>手沖壺</span><span class="n out" id="s4">0</span></li>
+      </ul>
+      <h2>執行日誌</h2>
+      <div class="hint">每筆動作都有時間戳與結果，可回溯、可稽核。</div>
+      <div class="log" id="log">
+        <div><span class="t">09:00</span><span class="k sys">待命</span>等待新訂單…</div>
+      </div>
+      <div class="invoice" id="inv" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Demo 為展示用途，品牌與資料皆為虛構。<br>
+  實際交付包含：多渠道訂單整合、庫存同步、出貨/發票自動流、對帳報表、例外處理與維運。
+</footer>
+
+<script>
+const stock={s1:18,s2:240,s3:4,s4:0};
+const pipe=[...document.querySelectorAll('.stage')];
+const log=document.getElementById('log');
+const runbtn=document.getElementById('runbtn');
+function ts(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
+function addLog(cls,txt){const d=document.createElement('div');d.innerHTML='<span class="t">'+ts()+'</span><span class="k '+cls+'">'+txt+'</span>';log.appendChild(d);log.scrollTop=log.scrollHeight;}
+function setStage(n,cls){const s=pipe[n-1]; if(s){s.classList.remove('on','ok'); s.classList.add(cls);} }
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+let running=false;
+async function run(){
+  if(running) return; running=true; runbtn.disabled=true; runbtn.textContent='執行中…';
+  log.innerHTML='';
+  pipe.forEach(s=>s.classList.remove('on','ok'));
+  // s1
+  setStage(1,'on'); addLog('sys','收到訂單 #A-1043（手沖禮盒 x1）');
+  await sleep(700); setStage(1,'ok'); setStage(2,'on'); addLog('ocr','庫存扣減：手沖禮盒 18→17');
+  await sleep(700); stock.s1=17; document.getElementById('s1').textContent='17';
+  setStage(2,'ok'); setStage(3,'on'); addLog('sys','出貨單建立 → 貨運排程（9/2 取件）');
+  await sleep(700); setStage(3,'ok'); setStage(4,'on'); addLog('sys','發票開立中…');
+  await sleep(700);
+  const inv=document.getElementById('inv');
+  inv.style.display='block';
+  inv.innerHTML='INV-2026-0918<br>客戶: B00123456<br>手沖禮盒 x1　$930<br>合計: $930<br>發票編號: AB12345678';
+  setStage(4,'ok'); setStage(5,'on'); addLog('ok','對帳：訂單/出貨/發票 全數相符');
+  await sleep(500); setStage(5,'ok');
+  addLog('warn','提醒：分享壺庫存 4，已低於門檻 → 自動下補貨單');
+  runbtn.disabled=false; runbtn.textContent='▶ 再跑一筆';
+  running=false;
+}
+</script>
+
+
+<footer style="max-width:1080px;margin:48px auto 80px;padding:0 20px;text-align:center;font-family:inherit;">
+  <h2 style="margin:0 0 10px;font-size:24px;font-weight:800;color:#fff;">喜歡這個 demo？</h2>
+  <p style="color:#8b93a8;font-size:15px;line-height:1.7;max-width:600px;margin:0 auto;">
+    這是一支功能完整的展示 demo。需要針對你的業務做一版，或想聊自動化怎麼落地——歡迎直接找：
+  </p>
+  <a href="https://www.threads.net/@tj736990" target="_blank" rel="noopener"
+     style="display:inline-block;margin:18px 0 6px;padding:13px 32px;background:#7c6cff;color:#fff;font-size:16px;font-weight:700;border-radius:999px;text-decoration:none;">Threads DM @tj736990</a>
+  <div style="margin-top:14px;font-size:13px;color:#5b6478;">展示 demo：品牌與數據皆為虛擬資料，僅供功能演示</div>
+</footer>
+
+
+</body>
+</html>
